@@ -1,0 +1,20 @@
+{
+  "budget": 2,
+  "unknown_error_code": "E_UNKNOWN_STREAM",
+  "credit_error_code": "E_FLOW_CONTROL",
+  "open_error_code": "E_STREAM_OPEN",
+  "event_error_code": "E_BAD_EVENT",
+  "state": { "streams": {}, "pending": [], "applied": [] },
+  "events": [
+    { "id": 1, "kind": "open", "stream": "s1", "credit": 5 },
+    { "id": 2, "kind": "frame", "stream": "s1", "size": 2 },
+    { "id": 3, "kind": "frame", "stream": "s1", "size": 3 },
+    { "id": 4, "kind": "close", "stream": "s1" },
+    { "id": 5, "kind": "open", "stream": "s2", "credit": 3 },
+    { "id": 6, "kind": "frame", "stream": "s2", "size": 1 },
+    { "id": 7, "kind": "frame", "stream": "s2", "size": 2 },
+    { "id": 8, "kind": "open", "stream": "s3", "credit": 2 },
+    { "id": 9, "kind": "frame", "stream": "s3", "size": 2 },
+    { "id": 10, "kind": "open", "stream": "s4", "credit": 1 }
+  ]
+}

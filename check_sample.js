@@ -52,37 +52,59 @@ emit("与全量对照差异 =", fingerprint(closed.state) === fingerprint(fullCl
 
 
 // ---- 异常路径探针：真调用实现，看它报出什么码（不是从样例里抄）----
-try {
+const __probes = {};
+function __probe(label, expectedCode, run) {
+  let fired = false;
+  let code = "没有报错";
+  try {
+    run();
+  } catch (error) {
+    fired = true;
+    code = error && error.code ? error.code : String(error.message);
+  }
+  __probes[label] = { fired: fired, code: code, expected: expectedCode };
+  emit(label, code);
+}
+__probe("未开流报码", "E_UNKNOWN_STREAM", function () {
   step(Object.assign({}, { budget: 2, state: { streams: {}, pending: [], applied: [] },
     events: [{ id: 1, kind: "frame", stream: "s9", size: 1 }] }));
-  emit("未开流报码", "没有报错");
-} catch (error) {
-  emit("未开流报码", error && error.code ? error.code : String(error.message));
-}
-try {
+});
+__probe("信用不足报码", "E_FLOW_CONTROL", function () {
   step(Object.assign({}, { budget: 2,
     state: { streams: { s1: { credit: 1, delivered: 0, closed: false } }, pending: [], applied: [] },
     events: [{ id: 1, kind: "frame", stream: "s1", size: 2 }] }));
-  emit("信用不足报码", "没有报错");
-} catch (error) {
-  emit("信用不足报码", error && error.code ? error.code : String(error.message));
-}
-try {
+});
+__probe("重复开流报码", "E_STREAM_OPEN", function () {
   step(Object.assign({}, { budget: 2,
     state: { streams: { s1: { credit: 1, delivered: 0, closed: false } }, pending: [], applied: [] },
     events: [{ id: 1, kind: "open", stream: "s1", credit: 3 }] }));
-  emit("重复开流报码", "没有报错");
-} catch (error) {
-  emit("重复开流报码", error && error.code ? error.code : String(error.message));
-}
-try {
+});
+__probe("事件不合法报码", "E_BAD_EVENT", function () {
   step(Object.assign({}, { budget: 2, state: { streams: {}, pending: [], applied: [] },
     events: [{ id: 1, kind: "peek", stream: "s1" }] }));
-  emit("事件不合法报码", "没有报错");
-} catch (error) {
-  emit("事件不合法报码", error && error.code ? error.code : String(error.message));
-}
+});
 
+// ---- 七条机检断言：不达标立即记失败，最终非零退出 ----
+const __machineChecks = [
+  ["两档送出帧数不同", first.sent !== wide.sent],
+  ["收尾前账大于零而收尾后归零", first.pending_before > 0 && closed.state.pending.length === 0],
+  ["拆两轮中间态不同而收尾态一致",
+    fingerprint(r2.state) !== fingerprint(first.state)
+    && fingerprint(closedTwo.state) === fingerprint(closed.state)],
+  ["重放不再新送达", replay.delivered === 0],
+  ["工作计数不超事件条数", first.judged <= first.judged_bound && first.judged_bound === events.length],
+  ["与全量对照为零", fingerprint(closed.state) === fingerprint(fullClosed.state)],
+  ["状态异常探针真调", Object.keys(__probes).length === 4
+    && Object.keys(__probes).every(function (label) {
+      const probe = __probes[label];
+      return probe.fired && probe.code === probe.expected;
+    })]
+];
+let __assertBad = 0;
+for (const [name, ok] of __machineChecks) {
+  if (ok) { console.log("机检断言通过 " + name); }
+  else { __assertBad += 1; console.log("机检断言失败 " + name); }
+}
 
 // ---- 期望值（参考模型算出，与题面给的验收数值一致）----
 const EXPECTED = {
@@ -150,4 +172,5 @@ for (const [label, want] of Object.entries(EXPECTED)) {
   else { __bad += 1; console.log("不一致 " + label + " 期望 " + JSON.stringify(want) + " 实际 " + JSON.stringify(got)); }
 }
 console.log("验收项 " + (Object.keys(EXPECTED).length - __bad) + "/" + Object.keys(EXPECTED).length + " 通过");
-process.exit(__bad === 0 ? 0 : 1);
+console.log("机检断言 " + (__machineChecks.length - __assertBad) + "/" + __machineChecks.length + " 通过");
+process.exit(__bad === 0 && __assertBad === 0 ? 0 : 1);

@@ -1,8 +1,14 @@
-// flow.js：流表与信用判定（基线：一律说没有流、信用够）
+// flow.js：流表与信用判定
 export function streamOf(state, stream) {
-  return null;
+  if (!state || !state.streams || !Object.prototype.hasOwnProperty.call(state.streams, stream)) {
+    return null;
+  }
+  return state.streams[stream];
 }
 
 export function creditEnough(record, size) {
-  return true;
+  if (!record || record.closed) {
+    return false;
+  }
+  return record.credit >= size;
 }
